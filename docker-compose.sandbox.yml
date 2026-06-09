@@ -1,0 +1,230 @@
+services:
+  cvat_db:
+    container_name: sbx_cvat_db
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: cvat
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+    - cvat_db:/var/lib/postgresql/data
+    networks:
+    - cvat
+  cvat_redis_inmem:
+    container_name: sbx_cvat_redis_inmem
+    image: redis:7.2.11-alpine
+    restart: always
+    command:
+    - redis-server
+    - --save
+    - '60'
+    - '100'
+    - --appendonly
+    - 'yes'
+    volumes:
+    - cvat_inmem_db:/data
+    networks:
+    - cvat
+  cvat_redis_ondisk:
+    container_name: sbx_cvat_redis_ondisk
+    image: apache/kvrocks:2.15.0
+    restart: always
+    init: true
+    volumes:
+    - cvat_cache_db:/var/lib/kvrocks
+    networks:
+    - cvat
+    command:
+    - --compact-cron
+    - 0 3 * * *
+  cvat_server:
+    container_name: sbx_cvat_server
+    image: cvat/server:${CVAT_VERSION:-v2.67.0}
+    restart: always
+    depends_on:
+      cvat_redis_inmem: &id001
+        condition: service_started
+      cvat_redis_ondisk: &id002
+        condition: service_started
+      cvat_db: &id003
+        condition: service_started
+      cvat_opa:
+        condition: service_started
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_DB: cvat
+      CLICKHOUSE_USER: user
+      CLICKHOUSE_PASSWORD: user
+      CVAT_POSTGRES_HOST: cvat_db
+      CVAT_REDIS_INMEM_HOST: cvat_redis_inmem
+      CVAT_REDIS_INMEM_PORT: 6379
+      CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
+      CVAT_REDIS_ONDISK_PORT: 6666
+      CVAT_LOG_IMPORT_ERRORS: 'true'
+      CVAT_ALLOW_STATIC_CACHE: ${CVAT_ALLOW_STATIC_CACHE:-no}
+      CVAT_DEFAULT_BACKING_CS_ID: null
+      CVAT_NUM_PROXIES: ${CVAT_NUM_PROXIES:-1}
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      SMOKESCREEN_OPTS: ${SMOKESCREEN_OPTS:-}
+      DJANGO_MODWSGI_EXTRA_ARGS: ''
+      ALLOWED_HOSTS: '*'
+      ADAPTIVE_AUTO_ANNOTATION: 'false'
+      NUMPROCS: 2
+      CVAT_ANALYTICS: '0'
+      CVAT_BASE_URL: null
+      ONE_RUNNING_JOB_IN_QUEUE_PER_USER: null
+    command: init run server nginx
+    labels:
+      traefik.enable: 'true'
+      traefik.http.services.cvat.loadbalancer.server.port: '8080'
+      traefik.http.routers.cvat.rule: Host(`${CVAT_HOST:-localhost}`) && (PathPrefix(`/api/`)
+        || PathPrefix(`/static/`) || PathPrefix(`/admin`) || PathPrefix(`/django-rq`))
+      traefik.http.routers.cvat.entrypoints: web
+    volumes:
+    - cvat_data:/home/django/data
+    - cvat_keys:/home/django/keys
+    - cvat_logs:/home/django/logs
+    networks:
+      cvat:
+        aliases:
+        - cvat-server
+  cvat_worker_utils:
+    container_name: sbx_cvat_worker_utils
+    image: cvat/server:${CVAT_VERSION:-v2.67.0}
+    restart: always
+    depends_on:
+      cvat_redis_inmem: *id001
+      cvat_redis_ondisk: *id002
+      cvat_db: *id003
+    environment:
+      CVAT_POSTGRES_HOST: cvat_db
+      CVAT_REDIS_INMEM_HOST: cvat_redis_inmem
+      CVAT_REDIS_INMEM_PORT: 6379
+      CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
+      CVAT_REDIS_ONDISK_PORT: 6666
+      CVAT_LOG_IMPORT_ERRORS: 'true'
+      CVAT_ALLOW_STATIC_CACHE: ${CVAT_ALLOW_STATIC_CACHE:-no}
+      CVAT_DEFAULT_BACKING_CS_ID: null
+      CVAT_NUM_PROXIES: ${CVAT_NUM_PROXIES:-1}
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      SMOKESCREEN_OPTS: ${SMOKESCREEN_OPTS:-}
+      CVAT_REDIS_INMEM_PASSWORD: ''
+      NUMPROCS: 1
+      CVAT_ANALYTICS: '0'
+    command: run worker notifications cleaning
+    volumes:
+    - cvat_data:/home/django/data
+    - cvat_keys:/home/django/keys
+    - cvat_logs:/home/django/logs
+    networks:
+    - cvat
+  cvat_worker_chunks:
+    container_name: sbx_cvat_worker_chunks
+    image: cvat/server:${CVAT_VERSION:-v2.67.0}
+    restart: always
+    depends_on:
+      cvat_redis_inmem: *id001
+      cvat_redis_ondisk: *id002
+      cvat_db: *id003
+    environment:
+      CVAT_POSTGRES_HOST: cvat_db
+      CVAT_REDIS_INMEM_HOST: cvat_redis_inmem
+      CVAT_REDIS_INMEM_PORT: 6379
+      CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
+      CVAT_REDIS_ONDISK_PORT: 6666
+      CVAT_LOG_IMPORT_ERRORS: 'true'
+      CVAT_ALLOW_STATIC_CACHE: ${CVAT_ALLOW_STATIC_CACHE:-no}
+      CVAT_DEFAULT_BACKING_CS_ID: null
+      CVAT_NUM_PROXIES: ${CVAT_NUM_PROXIES:-1}
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      SMOKESCREEN_OPTS: ${SMOKESCREEN_OPTS:-}
+      NUMPROCS: 2
+      CVAT_ANALYTICS: '0'
+    command: run worker chunks
+    volumes:
+    - cvat_data:/home/django/data
+    - cvat_keys:/home/django/keys
+    - cvat_logs:/home/django/logs
+    networks:
+    - cvat
+  cvat_ui:
+    container_name: sbx_cvat_ui
+    image: cvat-sandbox-ui:obb
+    restart: always
+    depends_on:
+    - cvat_server
+    labels:
+      traefik.enable: 'true'
+      traefik.http.services.cvat-ui.loadbalancer.server.port: '8000'
+      traefik.http.routers.cvat-ui.rule: Host(`${CVAT_HOST:-localhost}`)
+      traefik.http.routers.cvat-ui.entrypoints: web
+    networks:
+    - cvat
+  traefik:
+    image: traefik:v3.6
+    container_name: sbx_traefik
+    restart: always
+    ports:
+    - 127.0.0.1:8085:8080
+    environment:
+      CVAT_HOST: ${CVAT_HOST:-localhost}
+      DJANGO_LOG_VIEWER_HOST: grafana
+      DJANGO_LOG_VIEWER_PORT: 3000
+      TRAEFIK_ACCESSLOG_FORMAT: json
+      TRAEFIK_ACCESSLOG_FIELDS_DEFAULTMODE: drop
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_ClientHost: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_DownstreamContentSize: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_DownstreamStatus: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_Duration: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RequestHost: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RequestMethod: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RequestPath: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RequestPort: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RequestProtocol: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_RouterName: keep
+      TRAEFIK_ACCESSLOG_FIELDS_NAMES_StartUTC: keep
+      TRAEFIK_LOG_FORMAT: json
+      TRAEFIK_ENTRYPOINTS_web_ADDRESS: :8080
+      TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: 'false'
+      TRAEFIK_PROVIDERS_DOCKER_NETWORK: cvat
+      TRAEFIK_PROVIDERS_FILE_DIRECTORY: /etc/traefik/rules
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./components/analytics/grafana_conf.yml:/etc/traefik/rules/grafana_conf.yml:ro
+    networks:
+    - cvat
+    logging:
+      driver: json-file
+      options:
+        max-size: 100m
+        max-file: '10'
+  cvat_opa:
+    container_name: sbx_cvat_opa
+    image: openpolicyagent/opa:1.12.2
+    restart: always
+    networks:
+      cvat:
+        aliases:
+        - opa
+    command:
+    - run
+    - --server
+    - --addr=:8181
+    - --log-level=error
+    - --set=services.cvat.url=http://cvat-server:8080
+    - --set=bundles.cvat.service=cvat
+    - --set=bundles.cvat.resource=/api/auth/rules
+    - --set=bundles.cvat.polling.min_delay_seconds=5
+    - --set=bundles.cvat.polling.max_delay_seconds=15
+networks:
+  cvat: null
+volumes:
+  cvat_db: null
+  cvat_data: null
+  cvat_keys: null
+  cvat_logs: null
+  cvat_inmem_db: null
+  cvat_events_db: null
+  cvat_cache_db: null

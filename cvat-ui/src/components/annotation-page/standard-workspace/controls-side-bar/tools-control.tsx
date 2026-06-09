@@ -51,6 +51,7 @@ import ConfidenceThreshold from 'components/annotation-page/standard-workspace/c
 import { switchToolsBlockerState } from 'actions/settings-actions';
 import withVisibilityHandling from './handle-popover-visibility';
 import ToolsTooltips from './interactor-tooltips';
+import { polygonToObb } from 'utils/obb';
 
 interface StateToProps {
     canvasInstance: Canvas;
@@ -157,6 +158,7 @@ interface State {
     activeTracker: MLModel | null;
     startInteractingWithBox: boolean;
     convertMasksToPolygons: boolean;
+    buildObb: boolean;
     trackedShapes: TrackedShape[];
     fetching: boolean;
     interactorResponseReceived: boolean;
@@ -255,6 +257,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
 
         this.state = {
             convertMasksToPolygons: false,
+            buildObb: true,
             startInteractingWithBox: (localStorage.getItem(startWithBoxStorageItem) ?? 'true') === 'true',
             activeInteractor: props.interactors.length ? props.interactors[0] : null,
             activeTracker: supportedTrackers.length ? supportedTrackers[0] : null,
@@ -979,8 +982,23 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
             ({ confidence }) => typeof confidence !== 'number' || confidence >= thresholdValue,
         );
 
+        const { buildObb } = this.state;
         let objects: ObjectState[] = [];
-        if (convertMasksToPolygons) {
+        if (buildObb) {
+            // SAM/scissors polygon -> minimum-area oriented box, shown as an editable
+            // rotated rectangle the labeller can tighten before saving.
+            objects = objectsToConstruct
+                .map(({ approximatedPoints }) => polygonToObb(approximatedPoints.flat()))
+                .filter((obb): obb is { points: number[]; rotation: number } => obb !== null)
+                .map(({ points, rotation }) => (
+                    new core.classes.ObjectState({
+                        shapeType: ShapeType.RECTANGLE,
+                        points,
+                        rotation,
+                        ...common,
+                    })
+                ));
+        } else if (convertMasksToPolygons) {
             objects = objectsToConstruct
                 .filter(({ approximatedPoints }) => approximatedPoints.length >= 3)
                 .map(({ approximatedPoints }) => (
@@ -1154,6 +1172,7 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
         } = this.props;
         const {
             activeInteractor, activeLabelID, fetching, startInteractingWithBox, convertMasksToPolygons,
+            buildObb,
         } = this.state;
 
         if (!interactors.length) {
@@ -1221,6 +1240,15 @@ export class ToolsControlComponent extends React.PureComponent<Props, State> {
                     </Col>
                 </Row>
                 <div className='cvat-tools-interactor-setups'>
+                    <div>
+                        <Switch
+                            checked={buildObb}
+                            onChange={(checked: boolean) => {
+                                this.setState({ buildObb: checked });
+                            }}
+                        />
+                        <Text>Build oriented box (OBB)</Text>
+                    </div>
                     <div>
                         <Switch
                             checked={convertMasksToPolygons}

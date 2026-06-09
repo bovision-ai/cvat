@@ -37,6 +37,7 @@ import ApproximationAccuracy from 'components/annotation-page/standard-workspace
 import { enableImageFilter as enableImageFilterAction, disableImageFilter as disableImageFilterAction } from 'actions/settings-actions';
 import { ImageFilter, ImageFilterAlias, hasFilter } from 'utils/image-processing';
 import { openAnnotationsActionModal } from 'components/annotation-page/annotations-actions/annotations-actions-modal';
+import { polygonToObb } from 'utils/obb';
 import withVisibilityHandling from './handle-popover-visibility';
 
 interface Props {
@@ -232,18 +233,23 @@ class OpenCVControlComponent extends React.PureComponent<Props & DispatchToProps
                 // need to recalculate without the latest sliding point
                 const finalPoints = await this.runCVAlgorithm(pressedPoints);
                 if (finalPoints.length >= 3) {
+                    const polyPoints = openCVWrapper.contours
+                        .approxPoly(
+                            finalPoints,
+                            openCVWrapper.utils.thresholdFromAccuracy(approxPolyAccuracy),
+                        )
+                        .flat();
+                    // Emit an editable oriented box (min-area rect of the traced contour)
+                    // instead of a polygon, so the labeller tightens an OBB before save.
+                    const obb = polygonToObb(polyPoints);
                     const finalObject = new core.classes.ObjectState({
                         frame,
                         objectType: ObjectType.SHAPE,
-                        shapeType: ShapeType.POLYGON,
+                        shapeType: obb ? ShapeType.RECTANGLE : ShapeType.POLYGON,
                         source: core.enums.Source.SEMI_AUTO,
                         label: labels.filter((label: any) => label.id === activeLabelID)[0],
-                        points: openCVWrapper.contours
-                            .approxPoly(
-                                finalPoints,
-                                openCVWrapper.utils.thresholdFromAccuracy(approxPolyAccuracy),
-                            )
-                            .flat(),
+                        points: obb ? obb.points : polyPoints,
+                        rotation: obb ? obb.rotation : 0,
                         occluded: false,
                         zOrder: curZOrder,
                     });
