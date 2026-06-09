@@ -1,0 +1,148 @@
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  40.21MB
+Step 1/25 : FROM node:lts-slim AS cvat-ui
+ ---> 242549cd4678
+Step 2/25 : ENV TERM=xterm     LANG='C.UTF-8'      LC_ALL='C.UTF-8'
+ ---> Using cache
+ ---> 88488f86213a
+Step 3/25 : RUN npm install -g corepack
+ ---> Using cache
+ ---> d01ee8134fbc
+Step 4/25 : COPY .yarnrc.yml /tmp/
+ ---> Using cache
+ ---> 321f5e8b08c2
+Step 5/25 : COPY package.json /tmp/
+ ---> Using cache
+ ---> 4786ff3fceb4
+Step 6/25 : COPY yarn.lock /tmp/
+ ---> Using cache
+ ---> 95c574029380
+Step 7/25 : COPY cvat-core/package.json /tmp/cvat-core/
+ ---> Using cache
+ ---> dee321c00744
+Step 8/25 : COPY cvat-canvas/package.json /tmp/cvat-canvas/
+ ---> Using cache
+ ---> 796fd22ce00a
+Step 9/25 : COPY cvat-canvas3d/package.json /tmp/cvat-canvas3d/
+ ---> Using cache
+ ---> 37ded7cd0b10
+Step 10/25 : COPY cvat-ui/package.json /tmp/cvat-ui/
+ ---> Using cache
+ ---> 653f52f5cf38
+Step 11/25 : COPY cvat-data/package.json /tmp/cvat-data/
+ ---> Using cache
+ ---> 33d24901d3c3
+Step 12/25 : WORKDIR /tmp/
+ ---> Using cache
+ ---> d02d6b657222
+Step 13/25 : RUN DISABLE_HUSKY=1 yarn install --immutable
+ ---> Using cache
+ ---> fe145e117569
+Step 14/25 : COPY cvat-data/ /tmp/cvat-data/
+ ---> Using cache
+ ---> 0482b0c7cc5e
+Step 15/25 : COPY cvat-core/ /tmp/cvat-core/
+ ---> Using cache
+ ---> 0b3cc4bb8498
+Step 16/25 : COPY cvat-canvas3d/ /tmp/cvat-canvas3d/
+ ---> Using cache
+ ---> 2cf1516c79bd
+Step 17/25 : COPY cvat-canvas/ /tmp/cvat-canvas/
+ ---> Using cache
+ ---> 67078ae88ede
+Step 18/25 : COPY cvat-ui/ /tmp/cvat-ui/
+ ---> 019be149bacd
+Step 19/25 : ARG CLIENT_PLUGINS
+ ---> Running in 70329b6b78ff
+ ---> Removed intermediate container 70329b6b78ff
+ ---> b7e8b7a1e1cf
+Step 20/25 : ARG SOURCE_MAPS_ENABLED=false
+ ---> Running in 7b8599a70770
+ ---> Removed intermediate container 7b8599a70770
+ ---> 2cbb0fea5df1
+Step 21/25 : RUN CLIENT_PLUGINS="${CLIENT_PLUGINS}" SOURCE_MAPS_ENABLED="${SOURCE_MAPS_ENABLED}" NODE_OPTIONS=--max-old-space-size=4096 yarn run build:cvat-ui
+ ---> Running in a0afc77613f4
+Source maps:  disabled
+Plugins:
+- /tmp/cvat-ui/plugins/sam/src/ts/index.tsx
+[91mBrowserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[0m[91m(node:31) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[0massets by path assets/ 91.2 MiB
+  assets by path assets/*.mjs 4.88 MiB 18 assets
+  assets by path assets/*.js 19 MiB 10 assets
+  assets by path assets/*.wasm 58.4 MiB
+    asset assets/ort-wasm-simd-threaded.asyncify.wasm 24.3 MiB [emitted] [from: ../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm] [copied] [big]
+    + 2 assets
+  assets by path assets/*.png 393 KiB
+    asset assets/point_cloud_preview.png 241 KiB [emitted] [from: src/assets/point_cloud_preview.png] [copied]
+    + 2 assets
+  asset assets/decoder.onnx 8.34 MiB [emitted] [from: plugins/sam/assets/decoder.onnx] [copied] [big]
+  asset assets/3rdparty/avc.wasm 124 KiB [emitted] [from: ../cvat-data/src/ts/3rdparty/avc.wasm] [copied]
+assets by chunk 23.1 MiB (auxiliary name: plugin_0)
+  asset 9b38a8c18d5f4d131491.wasm 22.7 MiB [emitted] [immutable] [from: ../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm] [big] (auxiliary name: plugin_0) (auxiliary id hint: vendors)
+  asset 4d5159703420a89a644f.mjs 392 KiB [emitted] [immutable] [from: ../node_modules/onnxruntime-web/dist/ort.bundle.min.mjs] [minimized] [big] (auxiliary name: plugin_0) (auxiliary id hint: vendors) 1 related asset
+asset index.html 1.19 KiB [emitted]
+orphan modules 14.2 MiB [orphan] 4438 modules
+runtime modules 14.1 KiB 33 modules
+built modules 22.3 MiB (javascript) 23.1 MiB (asset) [built]
+  modules by path ../node_modules/ 15.9 MiB (javascript) 23.1 MiB (asset) 3609 modules
+  modules by path ./ 5.95 MiB 364 modules
+  modules by path ../cvat-core/src/ 465 KiB 16 modules
+  modules by path ../cvat-data/src/ts/ 51.6 KiB 2 modules
+  modules by path ../cvat-canvas/src/ 9.65 KiB 2 modules
+  modules by path jsdom/lib/jsdom/ 30 bytes
+    jsdom/lib/jsdom/living/generated/utils (ignored) 15 bytes [built] [code generated]
+    jsdom/lib/jsdom/utils (ignored) 15 bytes [built] [code generated]
+  jsdom (ignored) 15 bytes [built] [code generated]
+  data:image/svg+xml;base64,PHN2ZyB3aWR0aD0i.. 217 bytes [built] [code generated]
+
+WARNING in asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  9b38a8c18d5f4d131491.wasm (22.7 MiB)
+  assets/ort.all.bundle.min.mjs (811 KiB)
+  assets/ort.all.min.mjs (764 KiB)
+  assets/ort.all.mjs (864 KiB)
+  assets/ort.bundle.min.mjs (392 KiB)
+  assets/ort.min.mjs (345 KiB)
+  assets/ort.mjs (351 KiB)
+  assets/ort.webgl.min.mjs (438 KiB)
+  assets/ort.webgl.mjs (491 KiB)
+  assets/opencv_4.8.0.js (9.45 MiB)
+  assets/decoder.onnx (8.34 MiB)
+  assets/ort-wasm-simd-threaded.asyncify.wasm (24.3 MiB)
+  assets/ort-wasm-simd-threaded.jsep.wasm (22.7 MiB)
+  assets/ort-wasm-simd-threaded.wasm (11.4 MiB)
+  assets/cvat-ui.8b23db6b5c972f94cfe8.min.js (8.7 MiB)
+  assets/plugin_0.612c4bc9fc111a10e7c1.min.js (397 KiB)
+  4d5159703420a89a644f.mjs (392 KiB)
+  assets/75.b018456531913cdfbcc1.min.js (392 KiB)
+
+WARNING in entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  cvat-ui (8.7 MiB)
+      assets/cvat-ui.8b23db6b5c972f94cfe8.min.js
+  plugin_0 (397 KiB)
+      assets/plugin_0.612c4bc9fc111a10e7c1.min.js
+
+webpack 5.105.0 compiled with 2 warnings in 130103 ms
+ ---> Removed intermediate container a0afc77613f4
+ ---> 4a247a5f278b
+Step 22/25 : FROM nginxinc/nginx-unprivileged:1.29.5-alpine3.23-slim
+ ---> 08c2bc93448b
+Step 23/25 : COPY cvat-ui/react_nginx.conf /etc/nginx/conf.d/default.conf
+ ---> Using cache
+ ---> b6d05dc595d2
+Step 24/25 : COPY cvat-ui/robots.txt /usr/share/nginx/html/
+ ---> Using cache
+ ---> 9878594c5aed
+Step 25/25 : COPY --from=cvat-ui /tmp/cvat-ui/dist /usr/share/nginx/html/
+ ---> ba362c9beb8f
+Successfully built ba362c9beb8f
+Successfully tagged cvat-sandbox-ui:obb

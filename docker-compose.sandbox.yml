@@ -78,10 +78,10 @@ services:
     command: init run server nginx
     labels:
       traefik.enable: 'true'
-      traefik.http.services.cvat.loadbalancer.server.port: '8080'
-      traefik.http.routers.cvat.rule: Host(`${CVAT_HOST:-localhost}`) && (PathPrefix(`/api/`)
+      traefik.http.services.sandbox-srv.loadbalancer.server.port: '8080'
+      traefik.http.routers.sandbox-srv.rule: Host(`${CVAT_HOST:-localhost}`) && (PathPrefix(`/api/`)
         || PathPrefix(`/static/`) || PathPrefix(`/admin`) || PathPrefix(`/django-rq`))
-      traefik.http.routers.cvat.entrypoints: web
+      traefik.http.routers.sandbox-srv.entrypoints: web
     volumes:
     - cvat_data:/home/django/data
     - cvat_keys:/home/django/keys
@@ -114,6 +114,35 @@ services:
       NUMPROCS: 1
       CVAT_ANALYTICS: '0'
     command: run worker notifications cleaning
+    volumes:
+    - cvat_data:/home/django/data
+    - cvat_keys:/home/django/keys
+    - cvat_logs:/home/django/logs
+    networks:
+    - cvat
+  cvat_worker_import:
+    container_name: sbx_cvat_worker_import
+    image: cvat/server:${CVAT_VERSION:-v2.67.0}
+    restart: always
+    depends_on:
+      cvat_redis_inmem: *id001
+      cvat_redis_ondisk: *id002
+      cvat_db: *id003
+    environment:
+      CVAT_POSTGRES_HOST: cvat_db
+      CVAT_REDIS_INMEM_HOST: cvat_redis_inmem
+      CVAT_REDIS_INMEM_PORT: 6379
+      CVAT_REDIS_ONDISK_HOST: cvat_redis_ondisk
+      CVAT_REDIS_ONDISK_PORT: 6666
+      CVAT_LOG_IMPORT_ERRORS: 'true'
+      CVAT_ALLOW_STATIC_CACHE: ${CVAT_ALLOW_STATIC_CACHE:-no}
+      CVAT_DEFAULT_BACKING_CS_ID: null
+      CVAT_NUM_PROXIES: ${CVAT_NUM_PROXIES:-1}
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      SMOKESCREEN_OPTS: ${SMOKESCREEN_OPTS:-}
+      NUMPROCS: 2
+      CVAT_ANALYTICS: '0'
+    command: run worker import
     volumes:
     - cvat_data:/home/django/data
     - cvat_keys:/home/django/keys
@@ -157,9 +186,9 @@ services:
     - cvat_server
     labels:
       traefik.enable: 'true'
-      traefik.http.services.cvat-ui.loadbalancer.server.port: '8000'
-      traefik.http.routers.cvat-ui.rule: Host(`${CVAT_HOST:-localhost}`)
-      traefik.http.routers.cvat-ui.entrypoints: web
+      traefik.http.services.sandbox-ui.loadbalancer.server.port: '8000'
+      traefik.http.routers.sandbox-ui.rule: Host(`${CVAT_HOST:-localhost}`)
+      traefik.http.routers.sandbox-ui.entrypoints: web
     networks:
     - cvat
   traefik:
@@ -188,8 +217,9 @@ services:
       TRAEFIK_LOG_FORMAT: json
       TRAEFIK_ENTRYPOINTS_web_ADDRESS: :8080
       TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: 'false'
-      TRAEFIK_PROVIDERS_DOCKER_NETWORK: cvat
+      TRAEFIK_PROVIDERS_DOCKER_NETWORK: cvat_sandbox_cvat
       TRAEFIK_PROVIDERS_FILE_DIRECTORY: /etc/traefik/rules
+      TRAEFIK_PROVIDERS_DOCKER_CONSTRAINTS: Label(`com.docker.compose.project`,`cvat_sandbox`)
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock:ro
     - ./components/analytics/grafana_conf.yml:/etc/traefik/rules/grafana_conf.yml:ro

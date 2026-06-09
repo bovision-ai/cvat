@@ -25,6 +25,7 @@ import MoveControl, { Props as MoveControlProps } from './move-control';
 import FitControl, { Props as FitControlProps } from './fit-control';
 import ResizeControl, { Props as ResizeControlProps } from './resize-control';
 import ToolsControl from './tools-control';
+import OBBToolControl from './obb-tool-control';
 import OpenCVControl from './opencv-control';
 import SnapToolsControl from './snap-tools-control';
 import DrawRectangleControl, { Props as DrawRectangleControlProps } from './draw-rectangle-control';
@@ -379,7 +380,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                 <hr />
 
                 <ObservedToolsControl />
-                <ObservedOpenCVControl />
+                <OBBToolControl />
                 {
                     rectangleControlVisible && (
                         <ObservedDrawRectangleControl
@@ -460,38 +461,6 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                         />
                     )
                 }
-
-                <ObservedSnapToolsControl />
-
-                <hr />
-
-                <ObservedMergeControl
-                    canvasInstance={canvasInstance}
-                    dynamicIconProps={dynamicMergeIconProps}
-                    disabled={controlsDisabled}
-                />
-                <ObservedGroupControl
-                    canvasInstance={canvasInstance}
-                    dynamicIconProps={dynamicGroupIconProps}
-                    disabled={controlsDisabled}
-                />
-                <ObservedSplitControl
-                    canvasInstance={canvasInstance}
-                    dynamicIconProps={dynamicTrackIconProps}
-                    disabled={controlsDisabled}
-                />
-                <ObservedJoinControl
-                    updateActiveControl={updateActiveControl}
-                    canvasInstance={canvasInstance}
-                    activeControl={activeControl}
-                    disabled={controlsDisabled}
-                />
-                <ObservedSliceControl
-                    updateActiveControl={updateActiveControl}
-                    canvasInstance={canvasInstance}
-                    activeControl={activeControl}
-                    disabled={controlsDisabled}
-                />
 
                 <ExtraControlsControl />
             </Layout.Sider>
