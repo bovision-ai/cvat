@@ -84,7 +84,7 @@ const componentShortcuts = {
         name: 'Draw mode',
         description:
             'Repeat the latest procedure of drawing with the same parameters',
-        sequences: ['n'],
+        sequences: ['n', 'enter'],
         scope: ShortcutScope.STANDARD_WORKSPACE_CONTROLS,
     },
     SWITCH_REDRAW_MODE_STANDARD_CONTROLS: {
@@ -319,6 +319,12 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                 return;
             }
 
+            // Enter is bound only to ACCEPT an active draw/interaction (e.g. SAM-OBB),
+            // so when idle it must not start a new draw the way N does.
+            if (event?.key === 'Enter') {
+                return;
+            }
+
             canvasInstance.cancel();
             // repeatDrawShape gets all the latest parameters
             // and calls canvasInstance.draw() with them
@@ -379,7 +385,10 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
 
                 <hr />
 
-                <ObservedToolsControl />
+                {/* AI Tools is the engine for the OBB button; keep it mounted but hidden */}
+                <div style={{ display: 'none' }}>
+                    <ToolsControl />
+                </div>
                 <OBBToolControl />
                 {
                     rectangleControlVisible && (
